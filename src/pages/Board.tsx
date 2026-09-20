@@ -124,10 +124,14 @@ export default function Board() {
         return closestCenter({
             ...args,
             droppableContainers:
-                args.droppableContainers.filter(
-                    (container) =>
-                        container.data.current?.type === "card"
-                ),
+                args.droppableContainers.filter((container) => {
+                    const type = container.data.current?.type;
+
+                    return (
+                        type === "card" ||
+                        type === "list-drop"
+                    );
+                }),
         });
     };
 
@@ -140,51 +144,79 @@ export default function Board() {
 
         if (!over) return;
 
-        if (
-            active.data.current?.type !== "card" ||
-            over.data.current?.type !== "card"
-        ) {
+        if (active.data.current?.type !== "card") {
             return;
         }
 
         const activeCardId = active.data.current.id;
-        const overCardId = over.data.current.id;
+        const overType = over.data.current?.type;
 
         setContents((currentContents) => {
             const activeIndex = currentContents.findIndex(
                 (content) => content.id === activeCardId
             );
 
-            const overIndex = currentContents.findIndex(
-                (content) => content.id === overCardId
-            );
-
-            if (activeIndex === -1 || overIndex === -1) {
+            if (activeIndex === -1) {
                 return currentContents;
             }
 
             const activeCard = currentContents[activeIndex];
-            const overCard = currentContents[overIndex];
 
-            if (activeCard.listId === overCard.listId) {
-                return currentContents;
-            }
+            if (overType === "list-drop") {
+                const targetListId = over.data.current?.listId;
 
-            const updatedContents = currentContents.map(
-                (content) =>
+                if (
+                    targetListId === undefined ||
+                    activeCard.listId === targetListId
+                ) {
+                    return currentContents;
+                }
+
+                return currentContents.map((content) =>
                     content.id === activeCardId
                         ? {
-                              ...content,
-                              listId: overCard.listId,
-                          }
+                            ...content,
+                            listId: targetListId,
+                        }
                         : content
-            );
+                );
+            }
 
-            return arrayMove(
-                updatedContents,
-                activeIndex,
-                overIndex
-            );
+            if (overType === "card") {
+                const overCardId = over.data.current?.id;
+
+                const overIndex = currentContents.findIndex(
+                    (content) => content.id === overCardId
+                );
+
+                if (overIndex === -1) {
+                    return currentContents;
+                }
+
+                const overCard = currentContents[overIndex];
+
+                if (activeCard.listId === overCard.listId) {
+                    return currentContents;
+                }
+
+                const updatedContents = currentContents.map(
+                    (content) =>
+                        content.id === activeCardId
+                            ? {
+                                ...content,
+                                listId: overCard.listId,
+                            }
+                            : content
+                );
+
+                return arrayMove(
+                    updatedContents,
+                    activeIndex,
+                    overIndex
+                );
+            }
+
+            return currentContents;
         });
     }
 

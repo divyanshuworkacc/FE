@@ -1,5 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
 
 interface ListProps {
     id: number;
@@ -28,6 +29,17 @@ export default function List({
         transition: {
             duration: 200,
             easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+        },
+    });
+
+    const {
+        setNodeRef: setDroppableNodeRef,
+        isOver,
+    } = useDroppable({
+        id: `list-drop-${id}`,
+        data: {
+            type: "list-drop",
+            listId: id,
         },
     });
 
@@ -64,13 +76,18 @@ export default function List({
                 </button>
             </div>
 
-            <div className="
-                min-h-0
-                overflow-y-auto
-                overflow-x-hidden
-                scrollbar-thin
-                pe-1
-            ">
+            <div
+                ref={setDroppableNodeRef}
+                className={`
+                    min-h-[40px]
+                    overflow-y-auto
+                    overflow-x-hidden
+                    scrollbar-thin
+                    pe-1
+                    rounded-lg
+                    ${isOver ? "bg-gray-200/60" : ""}
+                `}
+            >
                 {children}
             </div>
         </div>
