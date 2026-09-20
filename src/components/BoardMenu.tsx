@@ -1,8 +1,6 @@
 import Card from "./Card"
 
 
-
-
 export default function BoardMenu() {
     const boards = [
         { id: 1, title: "Board 1", description: "This is the first board", src: "https://via.placeholder.com/150" },
