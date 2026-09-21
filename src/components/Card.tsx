@@ -17,7 +17,7 @@ export default function Card({
 }: CardProps) {
     return (
         <div
-            className={`rounded-lg shadow-md ${className}`}
+            className={`overflow-hidden rounded-lg bg-white shadow-md ${className}`}
             title={description}
         >
             <img src={src} alt={title} />

@@ -22,7 +22,10 @@ export default function App() {
                 path="/boards"
                 element={
                     <ProtectedRoute>
-                        <Boards />
+                        <div className="flex h-screen flex-col">
+                            <Navbar />
+                            <Boards />
+                        </div>
                     </ProtectedRoute>
                 }
             />
