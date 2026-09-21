@@ -1,11 +1,12 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
+import type { ReactNode } from "react";
 
 interface ListProps {
     id: number;
     title: string;
-    children?: React.ReactNode;
+    children?: ReactNode;
 }
 
 export default function List({
@@ -44,9 +45,10 @@ export default function List({
     });
 
     const style = {
-        transform: CSS.Translate.toString(transform),
+        transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.3 : 1,
+        willChange: "transform",
     };
 
     return (
@@ -71,7 +73,7 @@ export default function List({
                     {title}
                 </h4>
 
-                <button className="text-gray-500 hover:text-gray-700">
+                <button type="button" className="text-gray-500 hover:text-gray-700">
                     ...
                 </button>
             </div>

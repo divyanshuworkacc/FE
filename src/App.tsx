@@ -3,7 +3,7 @@ import './App.css'
 import Navbar from './components/Navbar'
 import { abstract } from 'devstract';
 
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Boards from "./pages/Boards";
@@ -13,6 +13,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 export default function App() {
     return (
         <Routes>
+            <Route path="/" element={<Navigate to="/boards" replace />} />
+
             <Route
                 path="/login"
                 element={<Login />}
@@ -51,6 +53,8 @@ export default function App() {
                     </ProtectedRoute>
                 }
             />
+
+            <Route path="*" element={<Navigate to="/boards" replace />} />
         </Routes>
     );
 }

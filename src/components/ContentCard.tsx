@@ -15,6 +15,7 @@ export default function ContentCard({
     listId,
     title,
     description,
+    className = "",
 }: ContentCardProps) {
     const {
         attributes,
@@ -37,7 +38,7 @@ export default function ContentCard({
     });
 
     const style = {
-        transform: CSS.Translate.toString(transform),
+        transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.3 : 1,
     };
@@ -53,6 +54,7 @@ export default function ContentCard({
                 group relative flex items-center rounded-lg
                 p-2 mb-2 text-left shadow-sm
                 ${isDragging ? "bg-gray-300" : "bg-white"}
+                ${className}
             `}
         >
             <input
@@ -68,7 +70,7 @@ export default function ContentCard({
 
             <p
                 className="
-                    w-[calc(100%-1.5rem)]
+                    min-w-0 flex-1
                     transition-transform duration-300 ease-in-out
                     group-hover:translate-x-6
                     peer-checked:translate-x-6

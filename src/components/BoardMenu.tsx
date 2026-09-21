@@ -8,7 +8,7 @@ export default function BoardMenu() {
         { id: 3, title: "Board 3", description: "This is the third board", src: "https://via.placeholder.com/150" },
     ]
     return (
-        <div className="mx-w-800px mx-auto p-4 rounded-md shadow-md" >
+        <div className="max-w-[800px] mx-auto p-4 rounded-md shadow-md" >
             <input type="text" placeholder="Search..." className="w-full p-2 rounded-md border border-gray-300" />
             <div className="flex justify-between mt-4">
                 {boards.map((board) => (

@@ -1,10 +1,24 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Card from "../components/Card";
 import { abstract } from "devstract";
+import { useAuth } from "../context/AuthContext";
+import { db } from "../firebase";
+import {
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    orderBy,
+    query,
+    serverTimestamp,
+    updateDoc,
+    writeBatch,
+} from "firebase/firestore";
 
 type BoardCard = {
-    id: number;
+    id: string;
     title: string;
     description: string;
     seed: number;
@@ -12,44 +26,96 @@ type BoardCard = {
 };
 
 const initialCards: BoardCard[] = [
-    { id: 1, title: "Card 1", description: "This is the first card", seed: 1 },
+    { id: "initial-1", title: "Card 1", description: "This is the first card", seed: 1 },
 ]
 
-let nextId = initialCards.length + 1;
-
 export default function Boards() {
-    const [cards, setCards] = useState<BoardCard[]>(initialCards);
+    const { user } = useAuth();
+    const [cards, setCards] = useState<BoardCard[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
+    const seededRef = useRef(false);
+    const ignoreBlurRef = useRef(false);
 
-    function handleAddCard() {
+    useEffect(() => {
+        if (!user) return;
+
+        const boardsRef = collection(db, "users", user.uid, "boards");
+        const boardsQuery = query(boardsRef, orderBy("createdAt", "asc"));
+
+        return onSnapshot(boardsQuery, async (snapshot) => {
+            if (snapshot.empty && !seededRef.current) {
+                seededRef.current = true;
+                const batch = writeBatch(db);
+
+                initialCards.forEach((card) => {
+                    batch.set(doc(boardsRef, card.id), {
+                        ...card,
+                        isEditing: false,
+                        createdAt: serverTimestamp(),
+                    });
+                });
+
+                await batch.commit();
+                return;
+            }
+
+            setCards(
+                snapshot.docs.map((board) => {
+                    // "estimate" avoids the new card briefly sorting to the
+                    // top while its serverTimestamp() is still resolving
+                    const data = board.data({ serverTimestamps: "estimate" });
+                    return {
+                        id: board.id,
+                        title: data.title,
+                        description: data.description,
+                        seed: data.seed,
+                        isEditing: data.isEditing,
+                    };
+                })
+            );
+        });
+    }, [user]);
+
+    useEffect(() => {
+        if (cards.some((card) => card.isEditing)) {
+            inputRef.current?.focus();
+        }
+    }, [cards]);
+
+    async function handleAddCard() {
         if (cards.some((c) => c.isEditing)) return;
 
-        const newCard: BoardCard = {
-            id: nextId++,
+        if (!user) return;
+
+        const newCard = await addDoc(collection(db, "users", user.uid, "boards"), {
             title: "",
             description: "",
             seed: Math.floor(Math.random() * 1000),
             isEditing: true,
-        };
-        setCards((prev) => [...prev, newCard]);
-        requestAnimationFrame(() => inputRef.current?.focus());
+            createdAt: serverTimestamp(),
+        });
+
+        return newCard.id;
     }
 
-    function commitTitle(id: number, rawTitle: string) {
+    function commitTitle(id: string, rawTitle: string) {
         const title = rawTitle.trim();
 
+        if (!user) return;
+
+        const cardRef = doc(db, "users", user.uid, "boards", id);
+
         if (!title) {
-            setCards((prev) => prev.filter((c) => c.id !== id));
+            void deleteDoc(cardRef);
             return;
         }
 
-        setCards((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, title, isEditing: false } : c))
-        );
+        void updateDoc(cardRef, { title, isEditing: false });
     }
 
-    function cancelEditing(id: number) {
-        setCards((prev) => prev.filter((c) => c.id !== id));
+    function cancelEditing(id: string) {
+        if (!user) return;
+        void deleteDoc(doc(db, "users", user.uid, "boards", id));
     }
 
     return (
@@ -59,9 +125,9 @@ export default function Boards() {
                 backgroundImage: `url("${abstract({
                     width: 1920,
                     height: 1080,
-                    seed: "12345",
-                    style: "waves",
-                    palette: "sunset",
+                    seed: "123",
+                    style: "geometric",
+                    palette: "ocean",
                 })}")`,
             }}
         >
@@ -93,12 +159,20 @@ export default function Boards() {
                             className="w-full border-none p-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                    commitTitle(card.id, e.currentTarget.value);
+                                    e.preventDefault();
+                                    e.currentTarget.blur();
                                 } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    ignoreBlurRef.current = true;
+                                    e.currentTarget.blur();
                                     cancelEditing(card.id);
+                                    ignoreBlurRef.current = false;
                                 }
                             }}
-                            onBlur={(e) => commitTitle(card.id, e.currentTarget.value)}
+                            onBlur={(e) => {
+                                if (ignoreBlurRef.current) return;
+                                commitTitle(card.id, e.currentTarget.value);
+                            }}
                         />
                     </div>
                 ) : (
@@ -109,11 +183,12 @@ export default function Boards() {
                             description={card.description}
                             src={abstract({
                                 width: 200,
-                                blobs: 2,
                                 height: 75,
+                                blobs: 2,
                                 seed: card.seed,
                                 opacity: 1,
-                                palette: "sunset",
+                                style: "geometric",
+                                palette: "pastel"
                             })}
                         />
                     </Link>
