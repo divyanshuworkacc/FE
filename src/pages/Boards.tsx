@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import { abstract } from "devstract";
 import { useAuth } from "../context/AuthContext";
@@ -23,11 +23,10 @@ type BoardCard = {
     description: string;
     seed: number;
     isEditing?: boolean;
+    isNew?: boolean;
 };
 
-const initialCards: BoardCard[] = [
-    { id: "initial-1", title: "Card 1", description: "This is the first card", seed: 1 },
-]
+const initialCards: BoardCard[] = []
 
 export default function Boards() {
     const { user } = useAuth();
@@ -35,6 +34,34 @@ export default function Boards() {
     const inputRef = useRef<HTMLInputElement>(null);
     const seededRef = useRef(false);
     const ignoreBlurRef = useRef(false);
+
+    const navigate = useNavigate();
+
+    function startRenaming(id: string) {
+        if (!user) return;
+
+        void updateDoc(
+            doc(db, "users", user.uid, "boards", id),
+            {
+                isEditing: true,
+                isNew: false,
+            }
+        );
+    }
+
+    async function handleDeleteCard(id: string) {
+        if (!user) return;
+
+        const confirmed = window.confirm(
+            "Are you sure you want to delete this board?"
+        );
+
+        if (!confirmed) return;
+
+        await deleteDoc(
+            doc(db, "users", user.uid, "boards", id)
+        );
+    }
 
     useEffect(() => {
         if (!user) return;
@@ -60,18 +87,14 @@ export default function Boards() {
             }
 
             setCards(
-                snapshot.docs.map((board) => {
-                    // "estimate" avoids the new card briefly sorting to the
-                    // top while its serverTimestamp() is still resolving
-                    const data = board.data({ serverTimestamps: "estimate" });
-                    return {
-                        id: board.id,
-                        title: data.title,
-                        description: data.description,
-                        seed: data.seed,
-                        isEditing: data.isEditing,
-                    };
-                })
+                snapshot.docs.map((board) => ({
+                    id: board.id,
+                    title: board.data().title,
+                    description: board.data().description,
+                    seed: board.data().seed,
+                    isEditing: board.data().isEditing,
+                    isNew: board.data().isNew,
+                }))
             );
         });
     }, [user]);
@@ -84,16 +107,19 @@ export default function Boards() {
 
     async function handleAddCard() {
         if (cards.some((c) => c.isEditing)) return;
-
         if (!user) return;
 
-        const newCard = await addDoc(collection(db, "users", user.uid, "boards"), {
-            title: "",
-            description: "",
-            seed: Math.floor(Math.random() * 1000),
-            isEditing: true,
-            createdAt: serverTimestamp(),
-        });
+        const newCard = await addDoc(
+            collection(db, "users", user.uid, "boards"),
+            {
+                title: "",
+                description: "",
+                seed: Math.floor(Math.random() * 1000),
+                isEditing: true,
+                isNew: true,
+                createdAt: serverTimestamp(),
+            }
+        );
 
         return newCard.id;
     }
@@ -103,19 +129,52 @@ export default function Boards() {
 
         if (!user) return;
 
-        const cardRef = doc(db, "users", user.uid, "boards", id);
+        const cardRef = doc(
+            db,
+            "users",
+            user.uid,
+            "boards",
+            id
+        );
+
+        const card = cards.find((card) => card.id === id);
 
         if (!title) {
-            void deleteDoc(cardRef);
+            if (card?.isNew) {
+                void deleteDoc(cardRef);
+            }
+
             return;
         }
 
-        void updateDoc(cardRef, { title, isEditing: false });
+        void updateDoc(cardRef, {
+            title,
+            isEditing: false,
+            isNew: false,
+        });
     }
 
     function cancelEditing(id: string) {
         if (!user) return;
-        void deleteDoc(doc(db, "users", user.uid, "boards", id));
+
+        const card = cards.find((card) => card.id === id);
+
+        const cardRef = doc(
+            db,
+            "users",
+            user.uid,
+            "boards",
+            id
+        );
+
+        if (card?.isNew) {
+            void deleteDoc(cardRef);
+            return;
+        }
+
+        void updateDoc(cardRef, {
+            isEditing: false,
+        });
     }
 
     return (
@@ -176,22 +235,23 @@ export default function Boards() {
                         />
                     </div>
                 ) : (
-                    <Link to={`/boards/${card.id}`} key={card.id} className="block w-[200px]">
-                        <Card
-                            className="card w-full"
-                            title={card.title}
-                            description={card.description}
-                            src={abstract({
-                                width: 200,
-                                height: 75,
-                                blobs: 2,
-                                seed: card.seed,
-                                opacity: 1,
-                                style: "geometric",
-                                palette: "pastel"
-                            })}
-                        />
-                    </Link>
+                    <Card
+                        key={card.id}
+                        className="card w-[200px]"
+                        title={card.title}
+                        description={card.description}
+                        src={abstract({
+                            width: 200,
+                            blobs: 2,
+                            height: 75,
+                            seed: card.seed,
+                            opacity: 1,
+                            palette: "sunset",
+                        })}
+                        onOpen={() => navigate(`/boards/${card.id}`)}
+                        onRename={() => startRenaming(card.id)}
+                        onDelete={() => handleDeleteCard(card.id)}
+                    />
                 )
             )}
 
