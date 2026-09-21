@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface CardProps {
     className?: string;
@@ -20,6 +20,20 @@ export default function Card({
     onDelete,
 }: CardProps) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!menuOpen) return;
+
+        function closeMenu(event: PointerEvent) {
+            if (!menuRef.current?.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        }
+
+        document.addEventListener("pointerdown", closeMenu);
+        return () => document.removeEventListener("pointerdown", closeMenu);
+    }, [menuOpen]);
 
     return (
         <div
@@ -45,7 +59,7 @@ export default function Card({
             </div>
 
             {(onRename || onDelete) && (
-                <div className="absolute right-2 top-2">
+                <div ref={menuRef} className="absolute right-2 top-2">
                     <button
                         type="button"
                         onClick={(e) => {

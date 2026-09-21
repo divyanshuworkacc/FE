@@ -246,7 +246,8 @@ export default function Boards() {
                             height: 75,
                             seed: card.seed,
                             opacity: 1,
-                            palette: "sunset",
+                            style: "geometric",
+                            palette: "ocean",
                         })}
                         onOpen={() => navigate(`/boards/${card.id}`)}
                         onRename={() => startRenaming(card.id)}

@@ -43,8 +43,8 @@ export default function App() {
                                       width: 1920,
                                       height: 1080,
                                       seed: "12345",
-                                      style: "waves",
-                                      palette: "sunset",
+                                      style: "geometric",
+                                      palette: "pastel",
                                   })}")`,
                               }}>
                               <Board /> 

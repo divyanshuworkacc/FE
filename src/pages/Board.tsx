@@ -24,18 +24,36 @@ import {
     arrayMove,
 } from "@dnd-kit/sortable";
 
-const initialLists = [];
+type BoardList = {
+    id: number;
+    title: string;
+};
 
-const initialContents = [];
+type BoardContent = {
+    id: number;
+    listId: number;
+    title: string;
+    description: string;
+    tags?: string[];
+    deadline?: string;
+    completed?: boolean;
+};
+
+const initialLists: BoardList[] = [];
+
+const initialContents: BoardContent[] = [];
 
 export default function Board() {
     const { user } = useAuth();
     const { boardId } = useParams<{ boardId: string }>();
     const [addingToList, setAddingToList] = useState<number | null>(null);
     const [newCardTitle, setNewCardTitle] = useState("");
+    const [addingList, setAddingList] = useState(false);
+    const [newListTitle, setNewListTitle] = useState("");
     const [dataLoaded, setDataLoaded] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const listInputRef = useRef<HTMLInputElement>(null);
     const dragStartContentsRef = useRef(initialContents);
     const isDraggingRef = useRef(false);
 
@@ -45,6 +63,11 @@ export default function Board() {
 
     const [lists, setLists] = useState(initialLists);
     const [contents, setContents] = useState(initialContents);
+    const [editingContent, setEditingContent] = useState<BoardContent | null>(null);
+    const [draftTitle, setDraftTitle] = useState("");
+    const [draftDescription, setDraftDescription] = useState("");
+    const [draftTags, setDraftTags] = useState("");
+    const [draftDeadline, setDraftDeadline] = useState("");
 
     useEffect(() => {
         if (!user || !boardId) return;
@@ -299,7 +322,16 @@ export default function Board() {
         setActiveId(null);
     }
 
+    function startAddingList() {
+        setAddingList(true);
+        setNewListTitle("");
+        requestAnimationFrame(() => listInputRef.current?.focus());
+    }
+
     function addList() {
+        const title = newListTitle.trim();
+        if (!title) return;
+
         setLists((currentLists) => {
             const nextId = Math.max(0, ...currentLists.map((list) => list.id)) + 1;
 
@@ -307,10 +339,29 @@ export default function Board() {
                 ...currentLists,
                 {
                     id: nextId,
-                    title: `List ${nextId}`,
+                    title,
                 },
             ];
         });
+        setNewListTitle("");
+        setAddingList(false);
+    }
+
+    function renameList(id: number, title: string) {
+        setLists((currentLists) =>
+            currentLists.map((list) =>
+                list.id === id ? { ...list, title } : list
+            )
+        );
+    }
+
+    function deleteList(id: number) {
+        if (!window.confirm("Are you sure you want to delete this list?")) return;
+
+        setLists((currentLists) => currentLists.filter((list) => list.id !== id));
+        setContents((currentContents) =>
+            currentContents.filter((content) => content.listId !== id)
+        );
     }
 
     function addCard(listId: number) {
@@ -323,11 +374,14 @@ export default function Board() {
             return [
                 ...currentContents,
                 {
-                    id: nextId,
-                    listId,
-                    title,
-                    description: "",
-                },
+                id: nextId,
+                listId,
+                title,
+                description: "",
+                tags: [],
+                deadline: "",
+                completed: false,
+            },
             ];
         });
 
@@ -345,6 +399,65 @@ export default function Board() {
     function startAddingCard(listId: number) {
         setAddingToList(listId);
         setNewCardTitle("");
+    }
+
+    function openContentEditor(content: BoardContent) {
+        setEditingContent(content);
+        setDraftTitle(content.title);
+        setDraftDescription(content.description);
+        setDraftTags((content.tags ?? []).join(", "));
+        setDraftDeadline(content.deadline ?? "");
+    }
+
+    function closeContentEditor() {
+        setEditingContent(null);
+    }
+
+    function saveContent() {
+        if (!editingContent || !draftTitle.trim()) return;
+
+        const tags = draftTags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+
+        setContents((currentContents) =>
+            currentContents.map((content) =>
+                content.id === editingContent.id
+                    ? {
+                        ...content,
+                        title: draftTitle.trim(),
+                        description: draftDescription.trim(),
+                        tags,
+                        deadline: draftDeadline,
+                    }
+                    : content
+            )
+        );
+        closeContentEditor();
+    }
+
+    function toggleContentCompleted(id: number) {
+        setContents((currentContents) =>
+            currentContents.map((content) =>
+                content.id === id
+                    ? {
+                        ...content,
+                        completed: !content.completed,
+                    }
+                    : content
+            )
+        );
+    }
+
+    function deleteContent() {
+        if (!editingContent) return;
+        if (!window.confirm("Are you sure you want to delete this card?")) return;
+
+        setContents((currentContents) =>
+            currentContents.filter((content) => content.id !== editingContent.id)
+        );
+        closeContentEditor();
     }
 
     const activeCard = contents.find(
@@ -391,6 +504,8 @@ export default function Board() {
                                     key={list.id}
                                     id={list.id}
                                     title={list.title}
+                                    onRename={(title) => renameList(list.id, title)}
+                                    onDelete={() => deleteList(list.id)}
                                 >
                                     <SortableContext
                                         items={listContents.map(
@@ -406,15 +521,16 @@ export default function Board() {
                                                 <ContentCard
                                                     key={content.id}
                                                     id={content.id}
-                                                    listId={
-                                                        content.listId
+                                                    listId={content.listId}
+                                                    title={content.title}
+                                                    description={content.description}
+                                                    tags={content.tags}
+                                                    deadline={content.deadline}
+                                                    completed={content.completed ?? false}
+                                                    onCompletedChange={() =>
+                                                        toggleContentCompleted(content.id)
                                                     }
-                                                    title={
-                                                        content.title
-                                                    }
-                                                    description={
-                                                        content.description
-                                                    }
+                                                    onOpen={() => openContentEditor(content)}
                                                 />
                                             )
                                         )}
@@ -494,17 +610,56 @@ export default function Board() {
                             );
                         })}
 
-                        <button
-                            onClick={addList}
-                            className="
-                                w-[250px] shrink-0
-                                rounded-xl
-                                bg-gray-100/70
-                                p-2 shadow-md
-                            "
-                        >
-                            + Add new list
-                        </button>
+                        {addingList ? (
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    addList();
+                                }}
+                                className="h-fit w-[250px] shrink-0 rounded-xl bg-gray-100/70 p-2 shadow-md"
+                            >
+                                <input
+                                    ref={listInputRef}
+                                    value={newListTitle}
+                                    onChange={(event) => setNewListTitle(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Escape") {
+                                            setAddingList(false);
+                                            setNewListTitle("");
+                                        }
+                                    }}
+                                    placeholder="Enter list name..."
+                                    aria-label="New list name"
+                                    className="mb-2 w-full rounded-lg bg-white p-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        type="submit"
+                                        className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                                    >
+                                        Add list
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAddingList(false);
+                                            setNewListTitle("");
+                                        }}
+                                        className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-200"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={startAddingList}
+                                className="w-[250px] shrink-0 rounded-xl bg-gray-100/70 p-2 text-left shadow-md"
+                            >
+                                + Add new list
+                            </button>
+                        )}
                     </div>
                 </SortableContext>
 
@@ -564,6 +719,103 @@ export default function Board() {
                     ) : null}
                 </DragOverlay>
             </DndContext>
+
+            {editingContent && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+                    onClick={closeContentEditor}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="content-card-dialog-title"
+                        className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 id="content-card-dialog-title" className="text-lg font-semibold">
+                                Edit card
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={closeContentEditor}
+                                className="text-xl text-gray-500 hover:text-gray-800"
+                                aria-label="Close dialog"
+                            >
+                                x
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <label className="block text-sm font-medium text-gray-700">
+                                Title
+                                <input
+                                    value={draftTitle}
+                                    onChange={(event) => setDraftTitle(event.target.value)}
+                                    className="mt-1 w-full rounded border border-gray-300 p-2 outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-gray-700">
+                                Description
+                                <textarea
+                                    value={draftDescription}
+                                    onChange={(event) => setDraftDescription(event.target.value)}
+                                    rows={4}
+                                    className="mt-1 w-full resize-y rounded border border-gray-300 p-2 outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-gray-700">
+                                Tags
+                                <input
+                                    value={draftTags}
+                                    onChange={(event) => setDraftTags(event.target.value)}
+                                    placeholder="design, urgent, review"
+                                    className="mt-1 w-full rounded border border-gray-300 p-2 outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-gray-700">
+                                Deadline
+                                <input
+                                    type="date"
+                                    value={draftDeadline}
+                                    onChange={(event) => setDraftDeadline(event.target.value)}
+                                    className="mt-1 w-full rounded border border-gray-300 p-2 outline-none focus:ring-2 focus:ring-blue-400"
+                                />
+                            </label>
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={deleteContent}
+                                className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+                            >
+                                Delete card
+                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeContentEditor}
+                                    className="rounded px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={saveContent}
+                                    disabled={!draftTitle.trim()}
+                                    className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
