@@ -184,9 +184,9 @@ export default function Boards() {
                 backgroundImage: `url("${abstract({
                     width: 1920,
                     height: 1080,
-                    seed: "123",
+                    seed: "12443",
                     style: "geometric",
-                    palette: "ocean",
+                    palette: "pastel",
                 })}")`,
             }}
         >

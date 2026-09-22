@@ -96,9 +96,10 @@ export default function ContentCard({
                 "
             />
 
-            <div className="min-w-0">
+            <div className="min-w-0 overflow-hidden cursor-pointer">
                 <p
                     className={`
+                        pr-6
                         break-words
                         transition-transform
                         duration-300
