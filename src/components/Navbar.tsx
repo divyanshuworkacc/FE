@@ -53,7 +53,7 @@ export default function Navbar() {
                         className="flex h-8 w-8 items-center justify-center rounded-full bg-[#579dff] text-sm font-semibold text-[#1d2125] hover:bg-[#85b8ff]"
                         title="Account"
                     >
-                        U
+                        {auth.currentUser?.email?.charAt(0).toUpperCase() || "A"}
                     </button>
 
                     <button
