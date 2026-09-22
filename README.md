@@ -2,6 +2,10 @@
 
 A Trello-style task management app built with React, TypeScript, Vite, Tailwind CSS, Firebase Authentication, and Cloud Firestore.
 
+## Live Demo
+
+[Open the deployed app](https://web-app-509ac.web.app)
+
 ## Features
 
 - Google sign-in with Firebase Authentication
