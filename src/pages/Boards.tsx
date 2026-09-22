@@ -14,7 +14,6 @@ import {
     query,
     serverTimestamp,
     updateDoc,
-    writeBatch,
 } from "firebase/firestore";
 
 type BoardCard = {
@@ -30,7 +29,6 @@ export default function Boards() {
     const { user } = useAuth();
     const [cards, setCards] = useState<BoardCard[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
-    const seededRef = useRef(false);
     const ignoreBlurRef = useRef(false);
 
     const navigate = useNavigate();
