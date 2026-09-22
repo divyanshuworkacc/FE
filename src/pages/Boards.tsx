@@ -26,8 +26,6 @@ type BoardCard = {
     isNew?: boolean;
 };
 
-const initialCards: BoardCard[] = []
-
 export default function Boards() {
     const { user } = useAuth();
     const [cards, setCards] = useState<BoardCard[]>([]);
@@ -70,22 +68,6 @@ export default function Boards() {
         const boardsQuery = query(boardsRef, orderBy("createdAt", "asc"));
 
         return onSnapshot(boardsQuery, async (snapshot) => {
-            if (snapshot.empty && !seededRef.current) {
-                seededRef.current = true;
-                const batch = writeBatch(db);
-
-                initialCards.forEach((card) => {
-                    batch.set(doc(boardsRef, card.id), {
-                        ...card,
-                        isEditing: false,
-                        createdAt: serverTimestamp(),
-                    });
-                });
-
-                await batch.commit();
-                return;
-            }
-
             setCards(
                 snapshot.docs.map((board) => ({
                     id: board.id,
